@@ -12,21 +12,25 @@ object VerifyAssertions:
 
     def main(args: Array[String]): Unit = test(args(0))
 
-    def test(program: String): Unit =
-        val txt = Reader.loadFile(program)
-        val prg = SchemeParser.parseProgram(txt)
-        val analysis = new ModAnalysis(prg)
-            with SchemeModFSemanticsM
-            with SchemeAssertSemantics
-            with StandardSchemeModFComponents
-            with SchemeTypeDomain
-            with SchemeModFKCallSiteSensitivity
-            with LIFOWorklistAlgorithm[SchemeExp] {
+    def createAnalysis(program: SchemeExp) = {
+        new ModAnalysis(program)
+          with SchemeModFSemanticsM
+          with SchemeAssertSemantics
+          with StandardSchemeModFComponents
+          with SchemeTypeDomain
+          with SchemeModFKCallSiteSensitivity
+          with LIFOWorklistAlgorithm[SchemeExp] {
             val k = 2
 
             override def intraAnalysis(cmp: Component) =
                 new IntraAnalysis(cmp) with AssertionModFIntra
         }
+    }
+
+    def test(program: String): Unit =
+        val txt = Reader.loadFile(program)
+        val prg = SchemeParser.parseProgram(txt)
+        val analysis = createAnalysis(prg)
         analysis.analyzeWithTimeout(Timeout.none)
         val failed = analysis.assertionsFailed
         println(s"There are ${failed.size} violations")
