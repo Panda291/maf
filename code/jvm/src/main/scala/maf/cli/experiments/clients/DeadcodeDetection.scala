@@ -1,26 +1,22 @@
 package maf.cli.experiments.clients
 
 import maf.language.symbolic.lattices.*
-import maf.modular.scheme.modf.SimpleSchemeModFAnalysis
+import maf.modular.scheme.modf.{BigStepModFSemantics, BigStepModFSemanticsT, SchemeModFComponent, SchemeModFNoSensitivity, SchemeModFSemanticsM, SimpleSchemeModFAnalysis, StandardSchemeModFComponents}
 import maf.util.{Reader, Writer}
-import maf.core.Identity
+import maf.core.{Address, Identity}
 import maf.util.benchmarks.Table
-import maf.modular.ModAnalysis
+import maf.modular.{DependencyTracking, ModAnalysis}
 import maf.language.scheme.*
-import maf.modular.scheme.modf.SchemeModFSemanticsM
-import maf.modular.scheme.modf.BigStepModFSemantics
-import maf.modular.scheme.modf.StandardSchemeModFComponents
-import maf.modular.scheme.modf.SchemeModFNoSensitivity
 import maf.modular.scheme.SchemeConstantPropagationDomain
 import maf.modular.worklist.FIFOWorklistAlgorithm
+
 import scala.reflect.ClassTag
 import maf.language.scheme.lattices.SchemeLattice
-import maf.core.Address
 import maf.cli.modular.scv.JVMSatSolver
-import maf.modular.scheme.modf.BigStepModFSemanticsT
 import maf.bench.scheme.SchemeBenchmarkPrograms
 import maf.util.benchmarks.Timeout
 import maf.language.ContractScheme.ContractSchemeParser
+
 import java.util.concurrent.TimeoutException
 import maf.util.MAFLogger
 import maf.language.CScheme.CSchemeParser
@@ -35,6 +31,11 @@ trait DeadcodeDetection extends BigStepModFSemanticsT:
         override def eval(exp: SchemeExp): EvalM[Value] =
             visitedIdn = visitedIdn + exp.idn
             super.eval(exp)
+
+//trait DeadCodeDetectionWithDependencyTracking extends DependencyTracking[SchemeExp] with DeadcodeDetection
+//    override def intraAnalysis(cmp: Component): DeadCodeDetectionWithDependencyTrackingIntra
+//
+//    trait DeadCodeDetectionWithDependencyTrackingIntra extends DependencyTrackingIntra with DeadcodeDetectionIntra
 
 object DeadcodeDetection:
     type Analysis = DeadcodeDetection
@@ -58,6 +59,23 @@ object DeadcodeDetection:
             class AnalysisIntra(cmp: Component) extends IntraAnalysis(cmp) with DeadcodeDetectionIntra with BigStepModFIntra
             override def intraAnalysis(cmp: Component): AnalysisIntra =
                 new AnalysisIntra(cmp)
+
+//    def createAnalysisWithDependencyTracking(program: SchemeExp): DeadCodeDetectionWithDependencyTracking =
+//        new ModAnalysis[SchemeExp](program)
+//          with StandardSchemeModFComponents
+//          with SchemeModFSemanticsM
+//          with SchemeModFNoSensitivity
+//          with BigStepModFSemantics
+//          with SymbolicSchemeConstantPropagationDomain
+//          with FIFOWorklistAlgorithm[SchemeExp]
+////          with DeadcodeDetection
+////          with DependencyTracking[SchemeExp]:
+//          with DeadCodeDetectionWithDependencyTracking:
+//
+//            class AnalysisIntra(cmp: SchemeModFComponent) extends IntraAnalysis(cmp) with DeadCodeDetectionWithDependencyTrackingIntra with BigStepModFIntra with DependencyTrackingIntra
+//
+//            override def intraAnalysis(cmp: SchemeModFComponent): AnalysisIntra =
+//                new AnalysisIntra(cmp)
 
     /**
      * Creates a dead code detection analysis for SCV programs

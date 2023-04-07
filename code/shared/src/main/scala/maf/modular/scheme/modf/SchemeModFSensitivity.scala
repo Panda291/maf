@@ -53,6 +53,13 @@ trait SchemeModFKCallSiteSensitivity extends SchemeModFSensitivity:
 trait SchemeModFCallSiteSensitivity extends SchemeModFKCallSiteSensitivity:
     override val k = 1
 
+trait SchemeControlDependencySensitivity extends SchemeModFKCallSiteSensitivity: // TODO: extension is be placeholder until i figure out the best one
+//    override def intraAnalysis(cmp: Component) = {
+//        super.intraAnalysis(cmp)
+//    }
+
+    var dependencies: List[(Component, Component)] = List()
+
 /* Call-site x full-argument sensitivity for ModF */
 case class ArgCallSiteContext(
     fn: Position,
