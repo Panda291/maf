@@ -10,7 +10,7 @@ import maf.language.scheme.SchemeParser
 
 
 trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigStepModFSemantics {
-  var condDependencies: Map[SchemeExp, Set[SchemeExp]] = Map().withDefaultValue(Set.empty)
+  var condDependencies: Map[Identity, Set[Identity]] = Map().withDefaultValue(Set.empty)
   var debugExpressionSet: Set[SchemeExp] = Set.empty
 
   override def intraAnalysis(component: Component): ControlDependencyTrackingIntra
@@ -28,13 +28,10 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
 
     override def eval(exp: SchemeExp): EvalM[Value] = {
           exp match
-            case SchemeIf(cond, cons, alt, idn) =>
-              condDependencies = condDependencies.++(Map(cond -> Set(cons, alt)))
-//            case SchemeFuncall(f, args, idn) =>
-//              debugExpressionSet += f
-//              println(f.label)
-////            case SchemeIf(_, _, _, _) => debugExpressionSet += exp
-////            case _ => debugExpressionSet += exp
+            case SchemeIf(cond, cons, alt, idn) if alt.idn == exp.idn =>
+              condDependencies = condDependencies.++(Map(cond.idn -> Set(cons.idn)))
+            case SchemeIf(cond, cons, alt, idn) => // alt exists
+              condDependencies = condDependencies.++(Map(cond.idn -> Set(cons.idn, alt.idn)))
             case _ =>
           super.eval(exp)
         }
