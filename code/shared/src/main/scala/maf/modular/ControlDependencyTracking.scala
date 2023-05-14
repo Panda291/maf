@@ -1,18 +1,18 @@
 package maf.modular
 
-import maf.core._
-import maf.language.scheme.{SchemeExp, SchemeIf, SchemeBegin, SchemeFuncall}
+import maf.core.*
+import maf.language.scheme.{SchemeBegin, SchemeExp, SchemeFuncall, SchemeIf, SchemeLet, SchemeParser}
 import maf.modular.scheme.modf.*
 import maf.util.benchmarks.Timeout
 import maf.modular.worklist.FIFOWorklistAlgorithm
 import maf.modular.scheme.*
-import maf.language.scheme.SchemeParser
+
 import scala.collection.mutable
 
 
 trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigStepModFSemantics {
   var condDependencies: mutable.Map[Identity, Set[Identity]] = mutable.Map().withDefaultValue(Set.empty)
-  var debugExpressionSet: Set[SchemeExp] = Set.empty
+  var funcDependencies: mutable.Map[Identity, Set[Identity]] = mutable.Map().withDefaultValue(Set.empty)
 
   override def intraAnalysis(component: Component): ControlDependencyTrackingIntra
 
@@ -25,6 +25,9 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
             case SchemeIf(cond, cons, alt, idn) => // alt exists
               condDependencies(cond.idn) += cons.idn
               condDependencies(cond.idn) += alt.idn
+            case SchemeLet(bindings, body, idn) =>
+              funcDependencies(idn) ++= body.map(_.idn)
+            // TODO: check if things like begin should also be added
             case _ =>
           super.eval(exp)
         }
