@@ -14,16 +14,24 @@ import scala.collection.mutable
 
 trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigStepModFSemantics {
   var condDependencies: mutable.Map[Identity, Set[Identity]] = mutable.Map().withDefaultValue(Set.empty)
-//  var funcDependencies: mutable.Map[Identity, Set[Identity]] = mutable.Map().withDefaultValue(Set.empty)
+  var functionCalls: mutable.Map[Identity, Set[Identity]] = mutable.Map().withDefaultValue(Set.empty)
   var probabilityModifiers: mutable.Map[Identity, Double] = mutable.Map().withDefaultValue(1.0)
   var lambdaList: List[Identity] = List()
 
-  lazy val fullDependencyMap: Map[Identity, Set[Identity]] = dependencies.map {
-    case (k, v) =>
-      val newK = ComponentToIdentity(k).getOrElse(NoCodeIdentity)
-      val newV = v.flatMap(ComponentToIdentity)
-      (newK, newV)
-  } ++ (condDependencies.map(dep => (dep._1, dep._2.filter(e => !lambdaList.contains(e)))))
+//  lazy val fullDependencyMap: Map[Identity, Set[Identity]] = dependencies.map {
+//    case (k, v) =>
+//      val newK = ComponentToIdentity(k).getOrElse(NoCodeIdentity)
+//      val newV = v.flatMap(ComponentToIdentity)
+//      (newK, newV)
+//  } ++ (condDependencies.map(dep => (dep._1, dep._2.filter(e => dep._1 == NoCodeIdentity || !lambdaList.contains(e)))))
+
+  // https://www.baeldung.com/scala/merge-two-maps
+  def combineIdentityMaps(a: Map[Identity, Set[Identity]], b: Map[Identity, Set[Identity]]): Map[Identity, Set[Identity]] = {
+    a ++ b.map { case (k, v) => k -> (v ++ a.getOrElse(k, Set.empty))}
+  }
+
+//  lazy val fullDependencyMap: Map[Identity, Set[Identity]] = condDependencies.map(dep => (dep._1, dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e)))).toMap ++ functionCalls
+  lazy val fullDependencyMap: Map[Identity, Set[Identity]] = combineIdentityMaps(condDependencies.map(dep => (dep._1, dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e)))).toMap, functionCalls.toMap)
 
   override def intraAnalysis(component: Component): ControlDependencyTrackingIntra
 
@@ -71,15 +79,30 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
             case SchemeAssert(exp, idn) =>
               condDependencies(idn) += exp.idn
             case SchemeFuncall(f, args, idn) =>
-//              val reducedArgs = args.flatMap {
-//                case arg: SchemeLambda => None
-//                case arg: _ => Some(arg)
-//              }
+//              println(s"funcall $f from $idn to ${f.idn}")
               condDependencies(idn) ++= args.map(_.idn)
             case _ =>
               // TODO: confirm that objects such as "SchemeAnd" should also be managed. they seem to be transformed to if statements so might be managed
           super.eval(exp)
         }
+
+    override def applyClosuresM(fun: Value,
+                                args: List[(SchemeExp, Value)],
+                                cll: Position.Position,
+                                ctx: ContextBuilder = DefaultContextBuilder,
+                               ): M[Value] = {
+      val closures = lattice.getClosures(fun)
+      closures.foreach(c => {
+//        println(s"$cll -> ${c._1}")
+//        println(s"$cll -> ${c._1.idn}")
+        functionCalls(SimpleIdentity(cll)) += c._1.idn
+//        println(functionCalls)
+      })
+//      println(s"$cll -> ${lattice.getClosures(fun)}")
+//        println("")
+
+      super.applyClosuresM(fun, args, cll, ctx)
+    }
 }
 
 
