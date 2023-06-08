@@ -18,19 +18,11 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
   var probabilityModifiers: mutable.Map[Identity, Double] = mutable.Map().withDefaultValue(1.0)
   var lambdaList: List[Identity] = List()
 
-//  lazy val fullDependencyMap: Map[Identity, Set[Identity]] = dependencies.map {
-//    case (k, v) =>
-//      val newK = ComponentToIdentity(k).getOrElse(NoCodeIdentity)
-//      val newV = v.flatMap(ComponentToIdentity)
-//      (newK, newV)
-//  } ++ (condDependencies.map(dep => (dep._1, dep._2.filter(e => dep._1 == NoCodeIdentity || !lambdaList.contains(e)))))
-
   // https://www.baeldung.com/scala/merge-two-maps
   def combineIdentityMaps(a: Map[Identity, Set[Identity]], b: Map[Identity, Set[Identity]]): Map[Identity, Set[Identity]] = {
     a ++ b.map { case (k, v) => k -> (v ++ a.getOrElse(k, Set.empty))}
   }
 
-//  lazy val fullDependencyMap: Map[Identity, Set[Identity]] = condDependencies.map(dep => (dep._1, dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e)))).toMap ++ functionCalls
   lazy val fullDependencyMap: Map[Identity, Set[Identity]] = combineIdentityMaps(condDependencies.map(dep => (dep._1, dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e)))).toMap, functionCalls.toMap)
 
   override def intraAnalysis(component: Component): ControlDependencyTrackingIntra
@@ -93,13 +85,8 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
                                ): M[Value] = {
       val closures = lattice.getClosures(fun)
       closures.foreach(c => {
-//        println(s"$cll -> ${c._1}")
-//        println(s"$cll -> ${c._1.idn}")
         functionCalls(SimpleIdentity(cll)) += c._1.idn
-//        println(functionCalls)
       })
-//      println(s"$cll -> ${lattice.getClosures(fun)}")
-//        println("")
 
       super.applyClosuresM(fun, args, cll, ctx)
     }
