@@ -23,7 +23,13 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
     a ++ b.map { case (k, v) => k -> (v ++ a.getOrElse(k, Set.empty))}
   }
 
-  lazy val fullDependencyMap: Map[Identity, Set[Identity]] = combineIdentityMaps(condDependencies.map(dep => (dep._1, dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e)))).toMap, functionCalls.toMap)
+  lazy val fullDependencyMap: Map[Identity, Set[Identity]] =
+    combineIdentityMaps(condDependencies.toMap, functionCalls.toMap)
+      .filter(dep => dep._1.pos.tag == Position.NoPTag)
+      .map(dep =>
+        (dep._1,
+          dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e))
+            .filter(e => e.pos.tag == Position.NoPTag)))
 
   override def intraAnalysis(component: Component): ControlDependencyTrackingIntra
 
