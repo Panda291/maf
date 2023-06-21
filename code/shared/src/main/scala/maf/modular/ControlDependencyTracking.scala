@@ -20,16 +20,21 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
 
   // https://www.baeldung.com/scala/merge-two-maps
   def combineIdentityMaps(a: Map[Identity, Set[Identity]], b: Map[Identity, Set[Identity]]): Map[Identity, Set[Identity]] = {
-    a ++ b.map { case (k, v) => k -> (v ++ a.getOrElse(k, Set.empty))}
+    a ++ b.map { case (k, v) => k -> (v ++ a.getOrElse(k, Set.empty)) }
   }
 
-  lazy val fullDependencyMap: Map[Identity, Set[Identity]] =
-    combineIdentityMaps(condDependencies.toMap, functionCalls.toMap)
+  lazy val fullDependencyMap: Map[Identity, Set[Identity]] = {
+    val filteredCondDependencies = condDependencies.toMap
+      .map(dep =>
+        (dep._1,
+          dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e))))
+
+    combineIdentityMaps(filteredCondDependencies, functionCalls.toMap)
       .filter(dep => dep._1.pos.tag == Position.NoPTag)
       .map(dep =>
         (dep._1,
-          dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e))
-            .filter(e => e.pos.tag == Position.NoPTag)))
+          dep._2.filter(e => e.pos.tag == Position.NoPTag)))
+  }
 
   override def intraAnalysis(component: Component): ControlDependencyTrackingIntra
 
@@ -41,48 +46,48 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
 
   trait ControlDependencyTrackingIntra extends BigStepModFIntra with DependencyTrackingIntra:
     override def eval(exp: SchemeExp): EvalM[Value] = {
-          exp match
-            case SchemeIf(cond, cons, alt, idn) if alt.idn == exp.idn => // no alternative exists
-              condDependencies = condDependencies.++(Map(cond.idn -> Set(cons.idn)))
-              condDependencies(idn) += cond.idn
-              condDependencies(idn) += cons.idn
-              probabilityModifiers = probabilityModifiers.++(Map(cond.idn -> 0.5)) // node itself forms chance, has same effect as branches doing so
-            case SchemeIf(cond, cons, alt, idn) => // alternative exists
-              condDependencies(idn) += cond.idn
-              condDependencies(idn) += cons.idn
-              condDependencies(idn) += alt.idn
-              probabilityModifiers = probabilityModifiers.++(Map(cond.idn -> 0.5))
-            case SchemeLambda(name, args, body, annotation, idn) =>
-              condDependencies(idn) ++= body.map(_.idn)
-              lambdaList ::= idn
-            case SchemeVarArgLambda(name, args, vararg, body, annotation, idn) =>
-              condDependencies(idn) ++= body.map(_.idn)
-              lambdaList ::= idn
-            case SchemeLet(bindings, body, idn) =>
-              condDependencies(idn) ++= body.map(_.idn)
-              condDependencies(idn) ++= bindings.map(_._2.idn)
-            case SchemeLetStar(bindings, body, idn) =>
-              condDependencies(idn) ++= body.map(_.idn)
-              condDependencies(idn) ++= bindings.map(_._2.idn)
-            case SchemeLetrec(bindings, body, idn) =>
-              condDependencies(idn) ++= body.map(_.idn)
-              condDependencies(idn) ++= bindings.map(_._2.idn)
-            // SchemeNamedLet not a case class
-            case SchemeSet(variable, value, idn) =>
-              condDependencies(idn) += value.idn
-            case SchemeSetLex(variable, lexAddr, value, idn) =>
-              condDependencies(idn) += value.idn
-            case SchemeBegin(exps, idn) =>
-              condDependencies(idn) ++= exps.map(_.idn)
-            case SchemeAssert(exp, idn) =>
-              condDependencies(idn) += exp.idn
-            case SchemeFuncall(f, args, idn) =>
-//              println(s"funcall $f from $idn to ${f.idn}")
-              condDependencies(idn) ++= args.map(_.idn)
-            case _ =>
-              // TODO: confirm that objects such as "SchemeAnd" should also be managed. they seem to be transformed to if statements so might be managed
-          super.eval(exp)
-        }
+      exp match
+        case SchemeIf(cond, cons, alt, idn) if alt.idn == exp.idn => // no alternative exists
+          condDependencies = condDependencies.++(Map(cond.idn -> Set(cons.idn)))
+          condDependencies(idn) += cond.idn
+          condDependencies(idn) += cons.idn
+          probabilityModifiers = probabilityModifiers.++(Map(cond.idn -> 0.5)) // node itself forms chance, has same effect as branches doing so
+        case SchemeIf(cond, cons, alt, idn) => // alternative exists
+          condDependencies(idn) += cond.idn
+          condDependencies(idn) += cons.idn
+          condDependencies(idn) += alt.idn
+          probabilityModifiers = probabilityModifiers.++(Map(cond.idn -> 0.5))
+        case SchemeLambda(name, args, body, annotation, idn) =>
+          condDependencies(idn) ++= body.map(_.idn)
+          lambdaList ::= idn
+        case SchemeVarArgLambda(name, args, vararg, body, annotation, idn) =>
+          condDependencies(idn) ++= body.map(_.idn)
+          lambdaList ::= idn
+        case SchemeLet(bindings, body, idn) =>
+          condDependencies(idn) ++= body.map(_.idn)
+          condDependencies(idn) ++= bindings.map(_._2.idn)
+        case SchemeLetStar(bindings, body, idn) =>
+          condDependencies(idn) ++= body.map(_.idn)
+          condDependencies(idn) ++= bindings.map(_._2.idn)
+        case SchemeLetrec(bindings, body, idn) =>
+          condDependencies(idn) ++= body.map(_.idn)
+          condDependencies(idn) ++= bindings.map(_._2.idn)
+        // SchemeNamedLet not a case class
+        case SchemeSet(variable, value, idn) =>
+          condDependencies(idn) += value.idn
+        case SchemeSetLex(variable, lexAddr, value, idn) =>
+          condDependencies(idn) += value.idn
+        case SchemeBegin(exps, idn) =>
+          condDependencies(idn) ++= exps.map(_.idn)
+        case SchemeAssert(exp, idn) =>
+          condDependencies(idn) += exp.idn
+        case SchemeFuncall(f, args, idn) =>
+          //              println(s"funcall $f from $idn to ${f.idn}")
+          condDependencies(idn) ++= args.map(_.idn)
+        case _ =>
+      // TODO: confirm that objects such as "SchemeAnd" should also be managed. they seem to be transformed to if statements so might be managed
+      super.eval(exp)
+    }
 
     override def applyClosuresM(fun: Value,
                                 args: List[(SchemeExp, Value)],
@@ -97,7 +102,6 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
       super.applyClosuresM(fun, args, cll, ctx)
     }
 }
-
 
 
 def newControlDependencyAnalysis(text: String) =
