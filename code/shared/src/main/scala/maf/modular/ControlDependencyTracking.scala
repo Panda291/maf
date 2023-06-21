@@ -27,7 +27,7 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
     val filteredCondDependencies = condDependencies.toMap
       .map(dep =>
         (dep._1,
-          dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || !lambdaList.contains(e))))
+          dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || (!lambdaList.contains(e) && e != NoCodeIdentity))))
 
     combineIdentityMaps(filteredCondDependencies, functionCalls.toMap)
       .filter(dep => dep._1.pos.tag == Position.NoPTag)
