@@ -28,7 +28,8 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
       .map(dep =>
         (dep._1,
           //dep._2.filter(e => (dep._1 == NoCodeIdentity && e != NoCodeIdentity) || (!lambdaList.contains(e) && e != NoCodeIdentity))))
-          dep._2.filter(e => (!lambdaList.contains(e) && e != NoCodeIdentity))))
+          //dep._2.filter(e => (!lambdaList.contains(e) && e != NoCodeIdentity))))
+          dep._2.filter(e => dep._1 != e && (!lambdaList.contains(e) && e != NoCodeIdentity))))
 
     combineIdentityMaps(filteredCondDependencies, functionCalls.toMap)
       .filter(dep => dep._1.pos.tag == Position.NoPTag)
