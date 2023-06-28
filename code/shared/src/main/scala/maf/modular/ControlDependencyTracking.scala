@@ -87,11 +87,11 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
 
     private def addLambdaChildren(idns: Iterable[Identity], parent: Identity, isParentLambda: Boolean = false): Unit = {
       if isParentLambda then
-        lambdaChildren (parent) ++= idns
+        lambdaChildren (parent) ++= idns.filter(e => e != parent && e != NoCodeIdentity)
       else
         lambdaChildren.foreach((k, v) => {
           if v.contains(parent) then
-            lambdaChildren(k) ++= idns
+            lambdaChildren(k) ++= idns.filter(e => e != parent && e != NoCodeIdentity)
         })
     }
 
