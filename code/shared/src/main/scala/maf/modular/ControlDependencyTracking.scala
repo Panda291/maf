@@ -37,6 +37,16 @@ trait ControlDependencyTracking extends DependencyTracking[SchemeExp] with BigSt
           dep._2.filter(e => e.pos.tag == Position.NoPTag)))
   }
 
+  lazy val reverseDependencyMap: Map[Identity, Set[Identity]] = {
+    val resultMap: mutable.Map[Identity, Set[Identity]] = mutable.Map().withDefaultValue(Set.empty)
+    fullDependencyMap.foreach((k,vs) => {
+      vs.foreach(v => {
+        resultMap(v) += k
+      })
+    })
+    resultMap.toMap
+  }
+
   override def intraAnalysis(component: Component): ControlDependencyTrackingIntra
 
   def ComponentToIdentity(cmp: Component): Option[Identity] = {
